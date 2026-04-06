@@ -1,0 +1,49 @@
+parameters:
+    
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            string $serpApiKey: '%env(SERPAPI_API_KEY)%'
+            string $openWeatherApiKey: '%env(OPENWEATHER_API_KEY)%'
+            string $groqApiKey: '%env(GROQ_API_KEY)%'
+            string $raggedGemini: '%env(RAGHED_GEMINI)%'
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\service\Accommodation\GoogleCalendarAccService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Security\LoginSuccessHandler:
+        arguments:
+            - '@router'
+            - '@doctrine.orm.entity_manager'
+            - '@App\service\PreferenceService'
+    
+    App\service\Accommodation\CacheService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+    
+    App\service\Accommodation\WeatherService:
+        arguments:
+            $openWeatherApiKey: '%env(OPENWEATHER_API_KEY)%'
+    
+    App\service\Accommodation\SerpApiService:
+        arguments:
+            $serpApiKey: '%env(SERPAPI_API_KEY)%'
+    
+    App\service\Accommodation\ItineraryService:
+        arguments:
+            $geminiApiKey: '%env(RAGHED_GEMINI)%'
+            
+    App\service\Accommodation\RoomInsightsService:
+        arguments:
+            $raggedGemini: '%env(RAGHED_GEMINI)%'
