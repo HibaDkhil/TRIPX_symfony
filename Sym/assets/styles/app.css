@@ -1,0 +1,55 @@
+/* ── Base ── */
+body {
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* ── Dark Mode ── */
+body.dark-mode {
+    background-color: #121827;
+    color: #c8d6e5;
+}
+
+body.dark-mode div[style*="background:white"],
+body.dark-mode div[style*="background:#F1EAE7"],
+body.dark-mode div[style*="background:#F5F0EB"] {
+    background-color: #1a2233 !important;
+    color: #c8d6e5 !important;
+}
+
+body.dark-mode table {
+    background-color: #1e2a40 !important;
+    color: #c8d6e5 !important;
+}
+
+body.dark-mode thead {
+    background-color: #16213a !important;
+}
+
+body.dark-mode th {
+    color: #8bafc8 !important;
+}
+
+body.dark-mode tr:nth-child(odd) {
+    background-color: #243050 !important;
+}
+
+body.dark-mode tr:nth-child(even) {
+    background-color: #1e2a40 !important;
+}
+
+body.dark-mode td {
+    color: #c8d6e5 !important;
+    border-color: #243050 !important;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #243050 !important;
+    border-color: #2d3a52 !important;
+    color: #c8d6e5 !important;
+}
+
+body.dark-mode input::placeholder {
+    color: #5e7a99 !important;
+}
