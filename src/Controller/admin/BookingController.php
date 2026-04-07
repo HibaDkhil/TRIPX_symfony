@@ -40,30 +40,24 @@ class BookingController extends AbstractController
         $dateTo    = $request->query->get('dateTo', '');
         $accFilter = $request->query->get('accommodation', '');
 
-        $qb = $this->bookingRepo->createQueryBuilder('b')
-            ->leftJoin('b.room', 'r')
-            ->leftJoin('r.accommodation', 'a')
-            ->addSelect('r', 'a')
-            ->orderBy('b.createdAt', 'DESC');
+        // Use repository method for filtered bookings
+        $bookings = $this->bookingRepo->findFilteredBookings(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
 
-        if ($status)    $qb->andWhere('b.status = :status')->setParameter('status', $status);
-        if ($search)    $qb->andWhere('b.phoneNumber LIKE :s OR a.name LIKE :s OR r.roomName LIKE :s')->setParameter('s', "%$search%");
-        if ($dateFrom)  $qb->andWhere('b.checkIn >= :df')->setParameter('df', new \DateTime($dateFrom));
-        if ($dateTo)    $qb->andWhere('b.checkOut <= :dt')->setParameter('dt', new \DateTime($dateTo));
-        if ($accFilter) $qb->andWhere('a.id = :acc')->setParameter('acc', $accFilter);
-
-        $bookings = $qb->getQuery()->getResult();
-
+        // Get counts using repository
         $total     = $this->bookingRepo->count([]);
         $pending   = $this->bookingRepo->count(['status' => 'PENDING']);
         $confirmed = $this->bookingRepo->count(['status' => 'CONFIRMED']);
         $cancelled = $this->bookingRepo->count(['status' => 'CANCELLED']);
         $rejected  = $this->bookingRepo->count(['status' => 'REJECTED']);
 
-        $revenue = $this->bookingRepo->createQueryBuilder('b')
-            ->select('SUM(b.totalPrice)')
-            ->where('b.status = :s')->setParameter('s', 'CONFIRMED')
-            ->getQuery()->getSingleScalarResult() ?? 0;
+        // Get revenue using repository method
+        $revenue = $this->bookingRepo->getFilteredRevenue();
 
         $accommodations = $this->accRepo->findBy([], ['name' => 'ASC']);
 
@@ -90,19 +84,15 @@ class BookingController extends AbstractController
         $dateTo    = $request->query->get('dateTo', '');
         $accFilter = $request->query->get('accommodation', '');
 
-        $qb = $this->bookingRepo->createQueryBuilder('b')
-            ->leftJoin('b.room', 'r')
-            ->leftJoin('r.accommodation', 'a')
-            ->addSelect('r', 'a')
-            ->orderBy('b.createdAt', 'DESC');
-
-        if ($status)    $qb->andWhere('b.status = :status')->setParameter('status', $status);
-        if ($search)    $qb->andWhere('b.phoneNumber LIKE :s OR a.name LIKE :s OR r.roomName LIKE :s')->setParameter('s', "%$search%");
-        if ($dateFrom)  $qb->andWhere('b.checkIn >= :df')->setParameter('df', new \DateTime($dateFrom));
-        if ($dateTo)    $qb->andWhere('b.checkOut <= :dt')->setParameter('dt', new \DateTime($dateTo));
-        if ($accFilter) $qb->andWhere('a.id = :acc')->setParameter('acc', $accFilter);
-
-        $bookings = $qb->getQuery()->getResult();
+        // Use repository method for filtered bookings
+        $bookings = $this->bookingRepo->findFilteredBookings(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
         $bookingsArray = array_map(fn($b) => $this->serializeBooking($b), $bookings);
 
         return $this->render('admin/bookings_export_dashboard.html.twig', [
@@ -122,19 +112,15 @@ class BookingController extends AbstractController
         $dateTo    = $request->query->get('dateTo', '');
         $accFilter = $request->query->get('accommodation', '');
 
-        $qb = $this->bookingRepo->createQueryBuilder('b')
-            ->leftJoin('b.room', 'r')
-            ->leftJoin('r.accommodation', 'a')
-            ->addSelect('r', 'a')
-            ->orderBy('b.createdAt', 'DESC');
-
-        if ($status)    $qb->andWhere('b.status = :status')->setParameter('status', $status);
-        if ($search)    $qb->andWhere('b.phoneNumber LIKE :s OR a.name LIKE :s OR r.roomName LIKE :s')->setParameter('s', "%$search%");
-        if ($dateFrom)  $qb->andWhere('b.checkIn >= :df')->setParameter('df', new \DateTime($dateFrom));
-        if ($dateTo)    $qb->andWhere('b.checkOut <= :dt')->setParameter('dt', new \DateTime($dateTo));
-        if ($accFilter) $qb->andWhere('a.id = :acc')->setParameter('acc', $accFilter);
-
-        $bookings = $qb->getQuery()->getResult();
+        // Use repository method for filtered bookings
+        $bookings = $this->bookingRepo->findFilteredBookings(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
         $bookingsArray = array_map(fn($b) => $this->serializeBooking($b), $bookings);
 
         $spreadsheet = new Spreadsheet();
@@ -209,6 +195,15 @@ class BookingController extends AbstractController
         $accSheet = $spreadsheet->createSheet();
         $accSheet->setTitle('By Accommodation');
         
+        // Get accommodation performance from repository
+        $accPerformance = $this->bookingRepo->getAccommodationPerformance(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
         $accSheet->setCellValue('A1', 'Accommodation Performance Ranking');
         $accSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         
@@ -221,22 +216,12 @@ class BookingController extends AbstractController
         $accSheet->getStyle('A3:E3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('7F77DD');
         $accSheet->getStyle('A3:E3')->getFont()->setColor(new Color(Color::COLOR_WHITE));
         
-        $accStats = [];
-        foreach ($bookingsArray as $b) {
-            $name = $b['accName'] ?? 'Unknown';
-            if (!isset($accStats[$name])) {
-                $accStats[$name] = ['bookings' => 0, 'revenue' => 0];
-            }
-            $accStats[$name]['bookings']++;
-            if ($b['status'] === 'CONFIRMED') {
-                $accStats[$name]['revenue'] += (float)($b['totalPrice'] ?? 0);
-            }
-        }
-        uasort($accStats, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        // Sort by revenue
+        uasort($accPerformance, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
         
         $row = 4;
         $rank = 1;
-        foreach ($accStats as $name => $stats) {
+        foreach ($accPerformance as $name => $stats) {
             $avgPrice = $stats['bookings'] > 0 ? $stats['revenue'] / $stats['bookings'] : 0;
             $accSheet->setCellValue('A' . $row, $rank);
             $accSheet->setCellValue('B' . $row, $name);
@@ -334,19 +319,15 @@ class BookingController extends AbstractController
         $dateTo    = $request->query->get('dateTo', '');
         $accFilter = $request->query->get('accommodation', '');
 
-        $qb = $this->bookingRepo->createQueryBuilder('b')
-            ->leftJoin('b.room', 'r')
-            ->leftJoin('r.accommodation', 'a')
-            ->addSelect('r', 'a')
-            ->orderBy('b.createdAt', 'DESC');
-
-        if ($status)    $qb->andWhere('b.status = :status')->setParameter('status', $status);
-        if ($search)    $qb->andWhere('b.phoneNumber LIKE :s OR a.name LIKE :s OR r.roomName LIKE :s')->setParameter('s', "%$search%");
-        if ($dateFrom)  $qb->andWhere('b.checkIn >= :df')->setParameter('df', new \DateTime($dateFrom));
-        if ($dateTo)    $qb->andWhere('b.checkOut <= :dt')->setParameter('dt', new \DateTime($dateTo));
-        if ($accFilter) $qb->andWhere('a.id = :acc')->setParameter('acc', $accFilter);
-
-        $bookings = $qb->getQuery()->getResult();
+        // Use repository method for filtered bookings
+        $bookings = $this->bookingRepo->findFilteredBookings(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
         $data = array_map(fn($b) => $this->serializeBooking($b), $bookings);
 
         return $this->json(['bookings' => $data, 'count' => count($data)]);
@@ -357,7 +338,9 @@ class BookingController extends AbstractController
     public function view(int $id): JsonResponse
     {
         $b = $this->bookingRepo->find($id);
-        if (!$b) { return $this->json(['error' => 'Not found'], 404); }
+        if (!$b) { 
+            return $this->json(['error' => 'Not found'], 404); 
+        }
         return $this->json($this->serializeBooking($b, true));
     }
 
@@ -367,7 +350,9 @@ class BookingController extends AbstractController
     {
         try {
             $b = $this->bookingRepo->find($id);
-            if (!$b) { return $this->json(['error' => 'Not found'], 404); }
+            if (!$b) { 
+                return $this->json(['error' => 'Not found'], 404); 
+            }
             if ($b->getStatus() !== 'PENDING') {
                 return $this->json(['error' => 'Only pending bookings can be confirmed'], 400);
             }
@@ -400,7 +385,9 @@ class BookingController extends AbstractController
     {
         try {
             $b = $this->bookingRepo->find($id);
-            if (!$b) { return $this->json(['error' => 'Not found'], 404); }
+            if (!$b) { 
+                return $this->json(['error' => 'Not found'], 404); 
+            }
 
             $data   = json_decode($request->getContent(), true) ?? [];
             $reason = $data['reason'] ?? $request->request->get('reason', '');
@@ -428,7 +415,9 @@ class BookingController extends AbstractController
     {
         try {
             $b = $this->bookingRepo->find($id);
-            if (!$b) { return $this->json(['error' => 'Not found'], 404); }
+            if (!$b) { 
+                return $this->json(['error' => 'Not found'], 404); 
+            }
 
             $data   = json_decode($request->getContent(), true) ?? [];
             $reason = $data['reason'] ?? $request->request->get('reason', '');
@@ -452,16 +441,65 @@ class BookingController extends AbstractController
 
     // ── Stats AJAX ────────────────────────────────────────────────────
     #[Route('/stats', name: 'stats', methods: ['GET'])]
-    public function stats(): JsonResponse
+    public function stats(Request $request): JsonResponse
     {
-        $total     = $this->bookingRepo->count([]);
-        $pending   = $this->bookingRepo->count(['status' => 'PENDING']);
-        $confirmed = $this->bookingRepo->count(['status' => 'CONFIRMED']);
-        $cancelled = $this->bookingRepo->count(['status' => 'CANCELLED']);
-        $rejected  = $this->bookingRepo->count(['status' => 'REJECTED']);
-        $revenue   = $this->bookingRepo->createQueryBuilder('b')
-            ->select('SUM(b.totalPrice)')->where('b.status = :s')
-            ->setParameter('s', 'CONFIRMED')->getQuery()->getSingleScalarResult() ?? 0;
+        // Get filters from request for filtered stats
+        $status    = $request->query->get('status', '');
+        $search    = $request->query->get('q', '');
+        $dateFrom  = $request->query->get('dateFrom', '');
+        $dateTo    = $request->query->get('dateTo', '');
+        $accFilter = $request->query->get('accommodation', '');
+
+        // Get counts based on filters
+        $total = $this->bookingRepo->countFilteredBookings(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
+        // Get status-specific counts with same filters
+        $pending = $this->bookingRepo->countFilteredBookings(
+            'PENDING',
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
+        $confirmed = $this->bookingRepo->countFilteredBookings(
+            'CONFIRMED',
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
+        $cancelled = $this->bookingRepo->countFilteredBookings(
+            'CANCELLED',
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
+        $rejected = $this->bookingRepo->countFilteredBookings(
+            'REJECTED',
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
+        
+        // Get revenue based on filters
+        $revenue = $this->bookingRepo->getFilteredRevenue(
+            $status ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            $accFilter ? (int) $accFilter : null
+        );
 
         return $this->json(compact('total', 'pending', 'confirmed', 'cancelled', 'rejected', 'revenue'));
     }

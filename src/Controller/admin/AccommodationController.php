@@ -21,86 +21,58 @@ class AccommodationController extends AbstractController
     ) {}
 
     // ── List ─────────────────────────────────────────────────────────
-    #[Route('', name: 'index', methods: ['GET'])]
-    public function index(Request $request): Response
-    {
-        $search = $request->query->get('search', '');
-        $type   = $request->query->get('type', '');
-        $status = $request->query->get('status', '');
+#[Route('', name: 'index', methods: ['GET'])]
+public function index(Request $request): Response
+{
+    $search = $request->query->get('search', '');
+    $type   = $request->query->get('type', '');
+    $status = $request->query->get('status', '');
 
-        $qb = $this->repo->createQueryBuilder('a')->orderBy('a.createdAt', 'DESC');
+    $accommodations = $this->repo->findByFilters($search, $type, $status);
+    $stats          = $this->repo->getStats();
+    $types          = $this->repo->findDistinctTypes();
 
-        if ($search) {
-            $qb->andWhere('a.name LIKE :search OR a.city LIKE :search OR a.country LIKE :search')
-               ->setParameter('search', "%$search%");
-        }
-        if ($type)   { $qb->andWhere('a.type = :type')->setParameter('type', $type); }
-        if ($status) { $qb->andWhere('a.status = :status')->setParameter('status', $status); }
-
-        $accommodations = $qb->getQuery()->getResult();
-
-        $total    = $this->repo->count([]);
-        $active   = $this->repo->count(['status' => 'Active']);
-        $inactive = $total - $active;
-
-        $types = $this->repo->createQueryBuilder('a')
-            ->select('DISTINCT a.type')->where('a.type IS NOT NULL')
-            ->getQuery()->getSingleColumnResult();
-
-        return $this->render('admin/accommodations.html.twig', [
-            'accommodations' => $accommodations,
-            'total'          => $total,
-            'active'         => $active,
-            'inactive'       => $inactive,
-            'types'          => $types,
-            'filters'        => compact('search', 'type', 'status'),
-        ]);
-    }
-
+    return $this->render('admin/accommodations.html.twig', [
+        'accommodations' => $accommodations,
+        'total'          => $stats['total'],
+        'active'         => $stats['active'],
+        'inactive'       => $stats['inactive'],
+        'types'          => $types,
+        'filters'        => compact('search', 'type', 'status'),
+    ]);
+}
     // ── Stats (AJAX) ─────────────────────────────────────────────────
-    #[Route('/stats', name: 'stats', methods: ['GET'])]
-    public function stats(): JsonResponse
-    {
-        $total    = $this->repo->count([]);
-        $active   = $this->repo->count(['status' => 'Active']);
-        $inactive = $total - $active;
-        return $this->json(['total' => $total, 'active' => $active, 'inactive' => $inactive]);
-    }
+#[Route('/stats', name: 'stats', methods: ['GET'])]
+public function stats(): JsonResponse
+{
+    return $this->json($this->repo->getStats());
+}
 
-    // ── Search (AJAX real-time) ──────────────────────────────────────
-    #[Route('/search', name: 'search', methods: ['GET'])]
-    public function search(Request $request): JsonResponse
-    {
-        $search = $request->query->get('q', '');
-        $type   = $request->query->get('type', '');
-        $status = $request->query->get('status', '');
+   // ── Search (AJAX real-time) ──────────────────────────────────────
+#[Route('/search', name: 'search', methods: ['GET'])]
+public function search(Request $request): JsonResponse
+{
+    $search  = $request->query->get('q', '');
+    $type    = $request->query->get('type', '');
+    $status  = $request->query->get('status', '');
 
-        $qb = $this->repo->createQueryBuilder('a')->orderBy('a.createdAt', 'DESC');
+    $results = $this->repo->findByFilters($search, $type, $status);
 
-        if ($search) {
-            $qb->andWhere('a.name LIKE :search OR a.city LIKE :search OR a.country LIKE :search')
-               ->setParameter('search', "%$search%");
-        }
-        if ($type)   { $qb->andWhere('a.type = :type')->setParameter('type', $type); }
-        if ($status) { $qb->andWhere('a.status = :status')->setParameter('status', $status); }
+    $data = array_map(fn($a) => [
+        'id'        => $a->getId(),
+        'name'      => $a->getName(),
+        'type'      => $a->getType(),
+        'city'      => $a->getCity(),
+        'country'   => $a->getCountry(),
+        'stars'     => $a->getStars(),
+        'rating'    => $a->getRating(),
+        'status'    => $a->getStatus(),
+        'imagePath' => $a->getImagePath(),
+        'email'     => $a->getEmail(),
+    ], $results);
 
-        $results = $qb->getQuery()->getResult();
-
-        $data = array_map(fn($a) => [
-            'id'        => $a->getId(),
-            'name'      => $a->getName(),
-            'type'      => $a->getType(),
-            'city'      => $a->getCity(),
-            'country'   => $a->getCountry(),
-            'stars'     => $a->getStars(),
-            'rating'    => $a->getRating(),
-            'status'    => $a->getStatus(),
-            'imagePath' => $a->getImagePath(),
-            'email'     => $a->getEmail(),
-        ], $results);
-
-        return $this->json(['results' => $data, 'count' => count($data)]);
-    }
+    return $this->json(['results' => $data, 'count' => count($data)]);
+}
 
     // ── View ────────────────────────────────────────────────────────
     #[Route('/{id}', name: 'view', methods: ['GET'], requirements: ['id' => '\d+'])]

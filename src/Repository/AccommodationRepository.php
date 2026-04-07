@@ -16,28 +16,39 @@ class AccommodationRepository extends ServiceEntityRepository
         parent::__construct($registry, Accommodation::class);
     }
 
-//    /**
-//     * @return Accommodation[] Returns an array of Accommodation objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('a')
-//            ->andWhere('a.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('a.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
+    public function findByFilters(string $search = '', string $type = '', string $status = ''): array
+    {
+        $qb = $this->createQueryBuilder('a')->orderBy('a.createdAt', 'DESC');
 
-//    public function findOneBySomeField($value): ?Accommodation
-//    {
-//        return $this->createQueryBuilder('a')
-//            ->andWhere('a.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
+        if ($search) {
+            $qb->andWhere('a.name LIKE :search OR a.city LIKE :search OR a.country LIKE :search')
+               ->setParameter('search', "%$search%");
+        }
+        if ($type) {
+            $qb->andWhere('a.type = :type')->setParameter('type', $type);
+        }
+        if ($status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function findDistinctTypes(): array
+    {
+        return $this->createQueryBuilder('a')
+            ->select('DISTINCT a.type')
+            ->where('a.type IS NOT NULL')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    public function getStats(): array
+    {
+        $total    = $this->count([]);
+        $active   = $this->count(['status' => 'Active']);
+        $inactive = $total - $active;
+
+        return ['total' => $total, 'active' => $active, 'inactive' => $inactive];
+    }
 }

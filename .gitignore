@@ -9,7 +9,7 @@
 /var/
 /vendor/
 ###< symfony/framework-bundle ###
-
+/config/google/credentials_acc.json
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.result.cache
