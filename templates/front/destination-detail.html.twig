@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{ destination.name }}, {{ destination.country }} — AI-powered travel guide. Best activities, accommodations, and climate data.">
+  <title>{{ destination.name }} — Destination Detail · TripX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&family=Montserrat:wght@100..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets.php?f=css/main.css">
+  <link rel="stylesheet" href="/assets.php?f=css/animations.css">
+  <style>
+    .detail-hero {
+      height: 90vh;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 64px;
+      overflow: hidden;
+      margin-top: var(--nav-height);
+    }
+    .detail-hero-bg {
+      position: absolute; inset: 0;
+      font-size: 160px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #003049 0%, #d62828 50%, #f77f00 100%);
+    }
+    .detail-hero-bg img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+    .detail-hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(3,7,18,0.9) 0%, rgba(3,7,18,0.3) 50%, transparent 100%);
+    }
+    [data-theme="light"] .detail-hero-overlay {
+      background: linear-gradient(to top, rgba(255,248,240,0.1) 0%, transparent 100%);
+    }
+    .detail-hero-content { position: relative; z-index: 1; color: #F0F4F8; }
+    .detail-back {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+      color: rgba(240,244,248,0.7); margin-bottom: 20px;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: color var(--transition-fast);
+    }
+    .detail-back:hover { color: var(--accent-primary); }
+    .detail-title {
+      font-family: var(--font-display);
+      font-size: clamp(64px, 10vw, 128px);
+      text-transform: uppercase;
+      line-height: 0.88;
+      margin-bottom: 20px;
+    }
+    .detail-meta-bar {
+      display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+      margin-bottom: 32px;
+    }
+    .detail-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+    .mini-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-md);
+      padding: 20px;
+      display: flex; gap: 16px; align-items: center;
+      transition: all var(--transition-fast);
+      text-decoration: none; color: inherit;
+    }
+    .mini-card:hover { border-color: var(--accent-primary); transform: translateX(4px); }
+    .mini-card-icon { font-size: 32px; flex-shrink: 0; }
+    .mini-card-title { font-weight: 600; margin-bottom: 4px; }
+    .mini-card-sub { font-size: 0.82rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+    <div id="cursor-dot"></div><div id="cursor-halo"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="{{ path('index') }}" class="nav-logo">Trip<span>X</span></a>
+    <div class="nav-links">
+      <a href="{{ path('index') }}"          class="nav-link">Home</a>
+      <a href="{{ path('destinations') }}"   class="nav-link active">Destinations</a>
+      <a href="{{ path('activities') }}"     class="nav-link">Activities</a>
+      <a href="{{ path('accommodations') }}" class="nav-link">Accommodations</a>
+      <a href="{{ path('transport') }}"      class="nav-link">Transport</a>
+      <a href="{{ path('offers') }}"         class="nav-link">Offers</a>
+      <a href="{{ path('blog') }}" class="nav-link">Blog</a><a href="{{ path('my_bookings') }}" class="nav-link">My Bookings</a>
+    </div>
+    <div class="nav-actions">
+      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+        <span class="toggle-icon icon-sun">☀️</span>
+        <span class="toggle-icon icon-moon">🌙</span>
+      </button>
+      <a href="{{ path('users') }}" class="btn-nav-primary ripple-btn">My Profile</a><a href="{{ path('app_logout') }}" class="Btn-logout" style="margin-left: 8px;">
+        <div class="sign"><svg viewBox="0 0 512 512"><path d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-64 0c-53 0-96-43-96-96L0 128C0 75 43 32 96 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32z" /></svg></div>
+        <div class="text">Logout</div>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="detail-hero">
+  <div class="detail-hero-bg parallax-img" data-speed="0.25">
+    {% if destination.imageUrl %}
+      <img src="{{ destination.imageUrl }}" alt="{{ destination.name }}">
+    {% else %}
+      🌍
+    {% endif %}
+  </div>
+  <div class="detail-hero-overlay"></div>
+  <div class="detail-hero-content container">
+    <a href="{{ path('destinations') }}" class="detail-back">← All Destinations</a>
+    <div class="detail-meta-bar">
+      <span class="badge badge-teal">{{ destination.type|capitalize }}</span>
+      <span class="badge badge-coral">⭐ {{ destination.averageRating }}/5</span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:rgba(240,244,248,0.6)">{{ destination.city }} · {{ destination.country }}</span>
+    </div>
+    <div class="detail-title">{{ destination.name }}</div>
+    <div class="detail-actions">
+      <a href="{{ path('booking_form', {destinationId: destination.destinationId}) }}" class="btn btn-primary btn-lg ripple-btn">📋 Book Now</a>
+      <a href="{{ path('accommodations') }}" class="btn btn-secondary btn-lg ripple-btn" style="color:#F0F4F8;border-color:rgba(255,255,255,0.2)">🏨 Find Stays</a>
+    </div>
+  </div>
+</div>
+
+<!-- Overview -->
+<section class="section">
+  <div class="container">
+    <div class="grid-2" style="gap:60px;align-items:start">
+      <div>
+        <div class="section-label reveal"><span>About</span></div>
+        <h2 class="display-md reveal" style="margin-bottom:20px">Discover <span class="gradient-text">{{ destination.name }}</span></h2>
+        <p class="reveal reveal-delay-1" style="color:var(--text-secondary);line-height:1.8;margin-bottom:20px">
+          {{ destination.description|default('A beautiful destination waiting to be explored. Discover unique experiences, local culture, and unforgettable moments.') }}
+        </p>
+        <div class="grid-2 reveal reveal-delay-3" style="gap:16px">
+          <div class="stat-card">
+            <div class="stat-value">⭐ {{ destination.averageRating }}</div>
+            <div class="stat-label">Rating</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ destination.bestSeason|capitalize }}</div>
+            <div class="stat-label">Best Season</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">€{{ destination.estimatedBudget|default(0)|number_format(0) }}</div>
+            <div class="stat-label">From Budget</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ destination.type|capitalize }}</div>
+            <div class="stat-label">Type</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <!-- Info Panel -->
+        <div style="background:var(--bg-glass);backdrop-filter:var(--bg-glass-blur);border:1px solid var(--border-color);border-radius:var(--border-radius-lg);padding:32px" class="reveal">
+          <h3 style="font-family:var(--font-display);margin-bottom:20px;">Quick Info</h3>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color)">
+              <span style="color:var(--text-muted)">Country</span>
+              <span style="font-weight:600">{{ destination.country }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color)">
+              <span style="color:var(--text-muted)">City</span>
+              <span style="font-weight:600">{{ destination.city|default('—') }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color)">
+              <span style="color:var(--text-muted)">Best Season</span>
+              <span style="font-weight:600">{{ destination.bestSeason|capitalize }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color)">
+              <span style="color:var(--text-muted)">Timezone</span>
+              <span style="font-weight:600">{{ destination.timezone|default('—') }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color)">
+              <span style="color:var(--text-muted)">Popularity</span>
+              <span style="font-weight:600">{{ destination.popularity }} visits</span>
+            </div>
+            {% if destination.latitude and destination.longitude %}
+            <div style="display:flex;justify-content:space-between;padding:12px 0;">
+              <span style="color:var(--text-muted)">Coordinates</span>
+              <span style="font-family:var(--font-mono);font-size:12px">{{ destination.latitude }}, {{ destination.longitude }}</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Activities for this destination -->
+<section class="section" style="background:var(--bg-secondary)">
+  <div class="container">
+    <div class="section-label reveal"><span>Must Experience</span></div>
+    <h2 class="display-md reveal" style="margin-bottom:32px">Activities in <span class="text-coral">{{ destination.name }}</span></h2>
+    <div style="display:flex;flex-direction:column;gap:14px" class="stagger">
+      {% for act in activities %}
+        <a href="{{ path('activity_detail', {id: act.activityId}) }}" class="mini-card" style="text-decoration:none; color:inherit;">
+          <div class="mini-card-icon">
+            {% if act.category == 'adventure' %}🧗{% elseif act.category == 'food' %}🍜{% elseif act.category == 'cultural' %}🏛️{% elseif act.category == 'relaxation' %}🧘{% elseif act.category == 'nightlife' %}🌙{% elseif act.category == 'sports' %}⚽{% elseif act.category == 'wellness' %}💆{% else %}✨{% endif %}
+          </div>
+          <div style="flex:1;">
+            <div class="mini-card-title">{{ act.name }}</div>
+            <div class="mini-card-sub">
+              {% if act.durationMinutes %}{{ act.durationMinutes }} mins · {% endif %}
+              €{{ act.price|default(0)|number_format(0) }} · {{ act.category|capitalize }}
+              {% if act.capacity %} · {{ act.capacity }} spots{% endif %}
+            </div>
+          </div>
+          <span class="btn btn-secondary btn-sm" style="margin-left:auto">View</span>
+        </a>
+      {% else %}
+        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+          No activities found for this destination yet.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Book CTA -->
+<section class="section">
+  <div class="container" style="text-align:center;">
+    <div class="section-label reveal"><span>Ready?</span></div>
+    <h2 class="display-md reveal" style="margin-bottom:16px">Book Your Trip to <span class="gradient-text">{{ destination.name }}</span></h2>
+    <p class="text-muted reveal reveal-delay-1" style="margin-bottom:32px;">Start your adventure today — secure your spot now.</p>
+    <a href="{{ path('booking_form', {destinationId: destination.destinationId}) }}" class="btn btn-primary btn-lg ripple-btn reveal reveal-delay-2">📋 Book {{ destination.name }} Now</a>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 TripX. All rights reserved.</div>
+      <a href="{{ path('destinations') }}" class="footer-copy" style="color:var(--accent-primary)">← All Destinations</a>
+    </div>
+  </div>
+</footer>
+
+<button class="aria-orb" id="aria-orb" aria-label="Open ARIA">✦</button>
+<div class="aria-panel" id="aria-panel">
+  <div class="aria-header">
+    <div class="aria-avatar">✦</div>
+    <div><span class="aria-name">ARIA</span><span class="aria-status">{{ destination.name }} Expert 🌍</span></div>
+    <button id="aria-close" style="margin-left:auto;font-size:18px;color:var(--text-muted);cursor:none">✕</button>
+  </div>
+  <div class="aria-messages" id="aria-messages">
+    <div class="aria-msg bot"><div class="aria-bubble">I see you're exploring {{ destination.name }}! Want me to help plan your trip? Just ask! 🌴</div></div>
+  </div>
+  <div class="aria-input-row">
+    <input class="aria-input" id="aria-input" type="text" placeholder="Ask about {{ destination.name }}...">
+    <button class="aria-send" id="aria-send">➤</button>
+  </div>
+</div>
+<script src="/assets.php?f=js/main.js"></script>
+</body>
+</html>

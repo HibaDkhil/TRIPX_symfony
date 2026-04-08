@@ -1,0 +1,75 @@
+{% extends 'admin/admin_base.html.twig' %}
+{% block title %}{{ target_activity ? 'Edit' : 'Add' }} Activity — TripX Admin{% endblock %}
+
+{% block breadcrumbs %}
+  <a href="{{ path('admin_dashboard') }}" class="crumb">Dashboard</a>
+  <span class="sep">›</span>
+  <a href="{{ path('admin_activities') }}" class="crumb">Activities</a>
+  <span class="sep">›</span>
+  <span class="crumb active">{{ target_activity ? 'Edit ' ~ target_activity.name : 'Add Activity' }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="reveal">
+  <div style="margin-bottom:32px;">
+    <h1 class="display-sm" style="margin-bottom:4px">{{ target_activity ? 'Edit' : 'Add' }} Activity</h1>
+    <p class="text-muted" style="font-size:14px">Fill the details for the activity.</p>
+  </div>
+
+  <div class="card reveal" style="max-width: 800px;">
+    <div class="card-body">
+      {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.name, 'Name *', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.name, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.name) }}</div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.category, 'Category *', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.category, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.category) }}</div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.price, 'Price *', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.price, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.price) }}</div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.currency, 'Currency', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.currency, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.currency) }}</div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.durationMinutes, 'Duration (minutes) *', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.durationMinutes, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.durationMinutes) }}</div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            {{ form_label(form.capacity, 'Capacity *', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+            {{ form_widget(form.capacity, {'attr': {'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+            <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.capacity) }}</div>
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          {{ form_label(form.description, 'Description', {'label_attr': {'style': 'display:block; margin-bottom:8px; font-weight:600;'}}) }}
+          {{ form_widget(form.description, {'attr': {'rows': '4', 'class': 'form-control', 'style': 'width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary);'}}) }}
+          <div style="color: red; font-size: 13px; margin-top: 4px;">{{ form_errors(form.description) }}</div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:32px;">
+          <button type="submit" class="btn btn-primary" style="flex:1;">Save Activity</button>
+          <a href="{{ path('admin_activities') }}" class="btn btn-secondary" style="flex:1; text-align:center;">Cancel</a>
+        </div>
+      {{ form_end(form) }}
+    </div>
+  </div>
+</div>
+{% endblock %}
