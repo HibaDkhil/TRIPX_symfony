@@ -38,6 +38,11 @@
     text-transform: uppercase;
     letter-spacing: 0.07em;
   }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 28px;
+  }
   .panel {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -52,7 +57,16 @@
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 14px;
   }
-  /* Transport KPI mini-cards */
+  .activity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border-color);
+  }
+  .activity-row:last-child { border-bottom: none; }
+
+  /* Transport KPI mini-cards (Restored from HEAD) */
   .kpi-mini {
     flex: 1; min-width: 110px;
     background: var(--bg-surface);
@@ -68,8 +82,6 @@
 {% endblock %}
 
 {% block content %}
-
-  {# ── USER STAT CARDS ── #}
   <div class="stat-cards stagger">
     <div class="stat-card">
       <div class="stat-label">Total Users</div>
@@ -93,15 +105,7 @@
     </div>
   </div>
 
-  {# ── SYSTEM OVERVIEW PANEL ── #}
-  <div class="panel reveal stagger" style="margin-bottom:28px;">
-    <div class="panel-header">
-      <h2 style="font-family:var(--font-display);font-size:18px;margin:0;">System Overview</h2>
-    </div>
-    <p class="text-muted">Welcome to the central command. Use the sidebar to manage specific modules.</p>
-  </div>
-
-  {# ── TRANSPORT OVERVIEW & AI ── #}
+  {# ── TRANSPORT OVERVIEW & AI (Restored from HEAD) ── #}
   {% if stats is defined %}
   <div class="panel reveal stagger" style="margin-bottom:28px;">
     <div class="panel-header">
@@ -161,7 +165,6 @@
 
     {# CHARTS ROW #}
     <div style="display:flex; gap:20px; margin-bottom:24px; flex-wrap:wrap;">
-        <!-- Doughnut Chart: Booking Status -->
         <div style="flex:1; min-width:280px; background:var(--bg-card); padding:20px; border-radius:12px; border:1px solid rgba(109,131,242,0.22);">
             <div style="font-size:14px; font-weight:700; color:var(--text-primary); text-align:center; margin-bottom:16px;">Booking Statuses</div>
             <div style="position:relative; height:240px; width:100%;">
@@ -169,7 +172,6 @@
             </div>
         </div>
 
-        <!-- Line Chart: Weekly Revenue -->
         <div style="flex:2; min-width:400px; background:var(--bg-card); padding:20px; border-radius:12px; border:1px solid rgba(109,131,242,0.22);">
             <div style="font-size:14px; font-weight:700; color:var(--text-primary); text-align:center; margin-bottom:16px;">Revenue by Week (Last 8 Weeks)</div>
             <div style="position:relative; height:240px; width:100%;">
@@ -179,7 +181,6 @@
     </div>
     
     <div style="display:flex; gap:20px; margin-bottom:24px; flex-wrap:wrap;">
-        <!-- Bar Chart: Top Providers -->
         <div style="flex:1; min-width:400px; background:var(--bg-card); padding:20px; border-radius:12px; border:1px solid rgba(109,131,242,0.22);">
             <div style="font-size:14px; font-weight:700; color:var(--text-primary); text-align:center; margin-bottom:16px;">Top Providers by Confirmed Bookings</div>
             <div style="position:relative; height:240px; width:100%;">
@@ -213,9 +214,15 @@
   </div>
   {% endif %}
 
+  <div class="reveal stagger" style="margin-top: 40px;">
+    <div class="panel" style="text-align: center;">
+      <h2 style="font-family:var(--font-display);font-size:18px;margin-bottom:20px;">System Overview</h2>
+      <p class="text-muted">Welcome to the central command. Use the sidebar to manage specific modules.</p>
+    </div>
+  </div>
 {% endblock %}
 
-{% block page_scripts %}
+{% block javascripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
 async function analyzeTransport() {
@@ -246,76 +253,81 @@ async function analyzeTransport() {
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
-  const exportBtn = document.getElementById('exportPDF');
-  if (exportBtn) exportBtn.addEventListener('click', () => window.print());
+    // PDF Export
+    const exportBtn = document.getElementById('exportPDF');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            window.print();
+        });
+    }
 
-  // Wait, is stats defined? Because charts require stats
-  const chartsUrl = '{{ path("admin_overview_charts")|default("") }}';
-  if (!chartsUrl) return;
+    // Charts Initialization
+    const chartsUrl = '{{ path("admin_overview_charts")|default("") }}';
+    if (!chartsUrl) return;
 
-  try {
-      const response = await fetch(chartsUrl);
-      const data = await response.json();
-      
-      // 1. Doughnut Chart: Statuses
-      const statusCtx = document.getElementById('statusChart')?.getContext('2d');
-      if (statusCtx) {
-          new Chart(statusCtx, {
-              type: 'doughnut',
-              data: {
-                  labels: Object.keys(data.statuses),
-                  datasets: [{
-                      data: Object.values(data.statuses),
-                      backgroundColor: ['#10B981', '#F97316', '#EF4444'], 
-                      borderWidth: 0
-                  }]
-              },
-              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-          });
-      }
+    try {
+        const response = await fetch(chartsUrl);
+        const data = await response.json();
+        
+        // 1. Doughnut Chart: Statuses
+        const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+        if (statusCtx) {
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data.statuses),
+                    datasets: [{
+                        data: Object.values(data.statuses),
+                        backgroundColor: ['#10B981', '#F97316', '#EF4444'], 
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
 
-      // 2. Line Chart: Weekly Revenue
-      const revCtx = document.getElementById('revenueChart')?.getContext('2d');
-      if (revCtx) {
-          new Chart(revCtx, {
-              type: 'line',
-              data: {
-                  labels: Object.keys(data.weeklyRevenue),
-                  datasets: [{
-                      label: 'Revenue (EUR)',
-                      data: Object.values(data.weeklyRevenue),
-                      borderColor: '#6D83F2',
-                      backgroundColor: 'rgba(109, 131, 242, 0.2)',
-                      tension: 0.3,
-                      fill: true
-                  }]
-              },
-              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                         scales: { y: { beginAtZero: true } } }
-          });
-      }
+        // 2. Line Chart: Weekly Revenue
+        const revCtx = document.getElementById('revenueChart')?.getContext('2d');
+        if (revCtx) {
+            new Chart(revCtx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(data.weeklyRevenue),
+                    datasets: [{
+                        label: 'Revenue (EUR)',
+                        data: Object.values(data.weeklyRevenue),
+                        borderColor: '#6D83F2',
+                        backgroundColor: 'rgba(109, 131, 242, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                           scales: { y: { beginAtZero: true } } }
+            });
+        }
 
-      // 3. Bar Chart: Top Providers
-      const provCtx = document.getElementById('providerChart')?.getContext('2d');
-      if (provCtx) {
-          new Chart(provCtx, {
-              type: 'bar',
-              data: {
-                  labels: Object.keys(data.topProviders),
-                  datasets: [{
-                      label: 'Confirmed Bookings',
-                      data: Object.values(data.topProviders),
-                      backgroundColor: '#8B5CF6',
-                      borderRadius: 4
-                  }]
-              },
-              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
-                         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-          });
-      }
-  } catch (e) {
-      console.error('Failed to load chart data:', e);
-  }
+        // 3. Bar Chart: Top Providers
+        const provCtx = document.getElementById('providerChart')?.getContext('2d');
+        if (provCtx) {
+            new Chart(provCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data.topProviders),
+                    datasets: [{
+                        label: 'Confirmed Bookings',
+                        data: Object.values(data.topProviders),
+                        backgroundColor: '#8B5CF6',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
+                           scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load chart data:', e);
+    }
 });
 </script>
 {% endblock %}

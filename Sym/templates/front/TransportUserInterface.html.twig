@@ -124,12 +124,64 @@
   .provider-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
   .provider-name { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
   .provider-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+  /* ── Strip matching templates/front/transport.html.twig (marketing page) ── */
+  .transport-tabs {
+    display: flex; gap: 0; flex-wrap: wrap;
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md); padding: 6px; margin-top: 20px;
+    margin-bottom: 0; width: fit-content;
+  }
+  .transport-tabs .transport-tab {
+    padding: 10px 24px; border-radius: var(--border-radius-sm);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-muted); text-decoration: none;
+    transition: all var(--transition-fast); border: none; background: transparent; cursor: pointer;
+  }
+  .transport-tabs .transport-tab.active { background: var(--accent-primary); color: #fff; }
+  .transport-tabs .transport-tab:hover:not(.active) { background: var(--bg-card); color: var(--text-primary); }
+
+  .transport-search-extras {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg); padding: 28px; margin-top: 28px; margin-bottom: 0;
+  }
+  .trip-type-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .radio-pill { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+  .radio-pill input[type=radio] { accent-color: var(--accent-primary); width: 16px; height: 16px; }
+  .search-fields { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+  @media (max-width: 900px) { .search-fields { grid-template-columns: 1fr 1fr; } }
+
+  .route-card {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg); padding: 24px; margin-bottom: 16px;
+    transition: all var(--transition-smooth);
+  }
+  .route-card:hover { border-color: var(--accent-primary); transform: translateX(4px); }
+  .route-top { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .airline-logo {
+    width: 40px; height: 40px; border-radius: 8px; background: var(--bg-secondary);
+    display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+  }
+  .route-flight-info { flex: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .route-time { font-family: var(--font-display); font-size: 28px; line-height: 1; }
+  .route-arrow { font-size: 20px; color: var(--text-muted); }
+  .route-city { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 4px; }
+  .route-duration { text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+  .route-price { font-family: var(--font-display); font-size: 32px; color: var(--accent-primary); text-align: right; }
+  .price-pred {
+    background: rgba(0,245,212,0.06); border: 1px solid rgba(0,245,212,0.2);
+    border-radius: var(--border-radius-md); padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--text-secondary);
+  }
+  .carbon-row {
+    display: flex; gap: 10px; align-items: center; margin-top: 12px;
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  }
 </style>
 {% endblock %}
 
 {% block body %}
-<div id="cursor-dot"></div><div id="cursor-halo"></div>
-
+{# Cursor nodes: provided by base.html.twig only (avoid duplicate halos). #}
 {# ── nav is from base.html.twig ── #}
 
 {# ══════════════════════════════════════════
@@ -164,6 +216,8 @@
         📋 My Bookings
       </a>
     </div>
+
+
   </div>
 </div>
 
@@ -1031,6 +1085,54 @@
           const el = document.getElementById('details-' + id);
           el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
+
+        // Custom Validation for Booking Form
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('bookingForm');
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                // Clear old errors
+                document.querySelectorAll('.js-error').forEach(el => el.remove());
+                document.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+
+                let hasError = false;
+                
+                const adults = document.getElementById('adults');
+                const children = document.getElementById('children');
+
+                if (adults && children) {
+                    const aVal = parseInt(adults.value) || 0;
+                    const cVal = parseInt(children.value) || 0;
+
+                    if (aVal < 1) {
+                        showError(adults, 'At least 1 adult is required.');
+                        hasError = true;
+                    }
+                    if (cVal < 0) {
+                        showError(children, 'Children count cannot be negative.');
+                        hasError = true;
+                    }
+                    if (aVal + cVal > 20) {
+                        showError(adults, 'Maximum 20 total seats allowed.');
+                        hasError = true;
+                    }
+                }
+
+                if (hasError) {
+                    e.preventDefault();
+                }
+            });
+
+            function showError(input, message) {
+                input.classList.add('has-error');
+                const errDiv = document.createElement('div');
+                errDiv.className = 'field-error js-error';
+                errDiv.style.cssText = 'color:#ef4444;font-size:11px;margin-top:4px;';
+                errDiv.textContent = '⚠ ' + message;
+                input.parentNode.appendChild(errDiv);
+            }
+        });
       </script>
 
     {% endif %}{# end all tabs #}

@@ -217,6 +217,64 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .sidebar.collapsed .nav-item:hover::after { opacity: 1; }
+    
+    /* ─── Dropdown Navigation ─── */
+    .nav-dropdown {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      cursor: pointer;
+    }
+    .nav-dropdown-trigger .chevron {
+      font-size: 10px;
+      transition: transform 0.3s ease;
+      margin-left: auto;
+    }
+    .nav-dropdown.expanded .nav-dropdown-trigger .chevron {
+      transform: rotate(180deg);
+    }
+    .nav-sub-menu {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-left: 28px;
+    }
+    .nav-dropdown.expanded .nav-sub-menu {
+      max-height: 500px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+    .sub-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .sub-item:hover {
+      background: rgba(0,166,237,0.06);
+      color: var(--accent-primary);
+    }
+    .sub-item.active {
+      background: rgba(0,166,237,0.1);
+      color: var(--accent-primary);
+      font-weight: 600;
+    }
+    .sidebar.collapsed .nav-sub-menu { display: none !important; }
+    .sidebar.collapsed .nav-dropdown.expanded { background: none; }
 
     /* Sidebar footer */
     .sidebar-footer {
@@ -380,13 +438,25 @@
       {% endif %}
 
       {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_ADMIN_ACCOMODATION') %}
-      <a href="{{ path('admin_accommodations') }}" class="nav-item {% if app.request.get('_route') == 'admin_accommodations' %}active{% endif %}" data-label="Accommodations">
-        <span class="nav-icon">🏨</span><span class="nav-label">Accommodations</span>
-      </a>
+      <div class="nav-dropdown {% if 'admin_accommodations' in app.request.get('_route') or 'admin_rooms' in app.request.get('_route') %}expanded{% endif %}">
+        <div class="nav-item nav-dropdown-trigger {% if 'admin_accommodations' in app.request.get('_route') or 'admin_rooms' in app.request.get('_route') %}active{% endif %}" data-label="Accommodations">
+          <span class="nav-icon">🏨</span>
+          <span class="nav-label">Accommodations</span>
+          <span class="nav-label chevron">▼</span>
+        </div>
+        <div class="nav-sub-menu">
+          <a href="{{ path('admin_accommodations_index') }}" class="sub-item {% if app.request.get('_route') == 'admin_accommodations_index' %}active{% endif %}">
+            <span>• Accommodations List</span>
+          </a>
+          <a href="{{ path('admin_rooms_all') }}" class="sub-item {% if app.request.get('_route') == 'admin_rooms_all' %}active{% endif %}">
+            <span>• Global Rooms View</span>
+          </a>
+        </div>
+      </div>
       {% endif %}
 
       {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_ADMIN_TRANSPORT') %}
-      <a href="{{ path('admin_transport') }}" class="nav-item {% if app.request.get('_route') == 'admin_transport' %}active{% endif %}" data-label="Transport">
+      <a href="{{ path('admin_transport_index') }}" class="nav-item {% if 'admin_transport' in app.request.get('_route') %}active{% endif %}" data-label="Transport">
         <span class="nav-icon">✈️</span><span class="nav-label">Transport</span>
       </a>
       {% endif %}
@@ -455,10 +525,10 @@
     <!-- PAGE CONTENT -->
     <main class="admin-main">
       {% for label, messages in app.flashes %}
-          <div class="flash-container">
+          <div class="flash-container" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
               {% for message in messages %}
-                  <div class="flash-message {{ label }}">
-                      {% if label == 'success' %}✅{% else %}❌{% endif %}
+                  <div class="flash-message {{ label }}" style="background: {{ label == 'success' ? '#10b981' : '#ef4444' }}; color: white; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; font-family: var(--font-display, sans-serif); font-size: 14px; transition: opacity 0.3s ease, margin-top 0.3s ease;">
+                      <i class="fas {{ label == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' }}"></i>
                       {{ message }}
                   </div>
               {% endfor %}
@@ -466,6 +536,35 @@
       {% endfor %}
       {% block content %}{% endblock %}
     </main>
+
+    <div id="customConfirmModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center; opacity:0; transition:opacity 0.3s ease;">
+    <div class="modal-content" style="background:var(--bg-card); padding:24px; border-radius:12px; width:400px; max-width:90%; box-shadow:0 10px 30px rgba(0,0,0,0.3); transform:translateY(20px); transition:transform 0.3s ease; text-align:center;">
+      <div style="font-size:36px; margin-bottom:16px;">⚠️</div>
+      <h3 style="margin-bottom:8px; font-family:var(--font-display); font-size:20px; color:var(--text-main);">Confirm Action</h3>
+      <p id="customConfirmMessage" style="color:var(--text-muted); margin-bottom:24px; font-size:14px;">Are you sure you want to proceed?</p>
+      <div style="display:flex; justify-content:center; gap:12px;">
+        <button id="customConfirmCancel" class="btn btn-secondary">Cancel</button>
+        <a id="customConfirmOk" href="#" class="btn btn-primary" style="background:#ef4444; border-color:#ef4444;">Yes, confirm</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    function openConfirmModal(msg, url) {
+      const modal = document.getElementById('customConfirmModal');
+      document.getElementById('customConfirmMessage').innerText = msg;
+      document.getElementById('customConfirmOk').href = url;
+      modal.style.display = 'flex';
+      void modal.offsetWidth; // trigger reflow
+      modal.style.opacity = '1';
+      modal.querySelector('.modal-content').style.transform = 'translateY(0)';
+      
+      document.getElementById('customConfirmCancel').onclick = function() {
+        modal.style.opacity = '0';
+        modal.querySelector('.modal-content').style.transform = 'translateY(20px)';
+        setTimeout(() => modal.style.display = 'none', 300);
+      };
+    }
+  </script>
 
   </div>
 </div>
@@ -490,6 +589,15 @@
     const isLight = html.getAttribute('data-theme') === 'light';
     html.setAttribute('data-theme', isLight ? 'dark' : 'light');
     themeBtn.querySelector('.nav-icon').textContent = isLight ? '☀️' : '🌙';
+  });
+
+  // ─── Dropdown Toggles ───
+  document.querySelectorAll('.nav-dropdown-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('collapsed')) return;
+      const parent = trigger.parentElement;
+      parent.classList.toggle('expanded');
+    });
   });
 
   // ─── Instant Search ───

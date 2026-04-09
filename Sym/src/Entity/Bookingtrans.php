@@ -86,6 +86,7 @@ class Bookingtrans
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $dropoffAddress = null;
 
+
     public function __construct()
     {
         $this->bookingStatus     = 'PENDING';
@@ -162,4 +163,5 @@ class Bookingtrans
 
     public function getDropoffAddress(): ?string { return $this->dropoffAddress; }
     public function setDropoffAddress(?string $dropoffAddress): self { $this->dropoffAddress = $dropoffAddress; return $this; }
+
 }

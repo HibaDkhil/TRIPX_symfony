@@ -1,6 +1,24 @@
 <?php
+
+/**
+ * ============================================================================
+ * TRANSPORT MODULE (user-facing)
+ * ============================================================================
+ * Routes are prefixed with /user/transport (see class Route attribute below).
+ *
+ * Features:
+ *  - Schedules listing + AJAX search (user_transport_schedules_search)
+ *  - Browse transports by type / provider (FLIGHT | VEHICLE)
+ *  - Booking form + POST submit (Bookingtrans entity, BookingtransService)
+ *  - My bookings, cancel, add schedule, AI route helper, PDF receipt
+ *
+ * Related entities: Transport, Schedule, Bookingtrans, DestinationTrans
+ * Admin CRUD: App\Controller\admin\TransportAdminController
+ * ============================================================================
+ */
 namespace App\Controller\user;
 
+use App\Entity\User;
 use App\Entity\Bookingtrans;
 use App\service\BookingtransService;
 use App\service\ScheduleService;
@@ -13,6 +31,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use DateTime;
 use Dompdf\Dompdf;
@@ -47,12 +66,21 @@ class TransportUserInterfaceController extends AbstractController
         $this->destService      = $destService;
     }
 
-    // ════════════════════════════════════════
-    // USER ID — replace with session later
-    // ════════════════════════════════════════
+    /**
+     * Resolves the logged-in user id for Bookingtrans ownership (no hard-coded fallback).
+     */
     private function getCurrentUserId(): int
     {
-        return $this->getUser() ? (int) $this->getUser()->getId() : 1; // TODO: replace with $this->getUser()->getId()
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw new AccessDeniedException('You must be logged in for transport bookings.');
+        }
+        $id = $user->getUserId() ?? $user->getId();
+        if ($id === null) {
+            throw new \LogicException('Authenticated user has no user id.');
+        }
+
+        return (int) $id;
     }
 
     // ════════════════════════════════════════
@@ -72,7 +100,11 @@ class TransportUserInterfaceController extends AbstractController
     {
         $map = [];
         foreach ($this->destService->getAllDestinations() as $d) {
-            $map[$d->getDestinationId()] = $d->getName();
+            $name = $d->getCity() ?: $d->getName();
+            if ($d->getCountry()) {
+                $name .= ', ' . $d->getCountry();
+            }
+            $map[$d->getDestinationId()] = $name;
         }
         return $map;
     }
@@ -123,6 +155,9 @@ class TransportUserInterfaceController extends AbstractController
 
     // ════════════════════════════════════════
 
+    /**
+     * AJAX: filtered schedules for the Schedules tab (used by doAjaxSearch() in the template).
+     */
     #[Route('/schedules/search', name: 'user_transport_schedules_search', methods: ['GET'])]
 
     public function schedulesSearch(Request $request): JsonResponse
@@ -204,8 +239,6 @@ class TransportUserInterfaceController extends AbstractController
             // Availability
 
             $status = $s->getStatus();
-            $isBookableStatus = in_array($status, ['ON_TIME', 'BOARDING', 'DELAYED']); // Note: BOARDING is technically bookable in some systems, but user said ON_TIME or DELAYED.
-            // Re-reading user request: "the condition of the status of the scheduall is that it has to be on time or delayed so the schedual is available if the status is canceled or completed or boarding than the schedual is unavailabel"
             $isBookableStatus = in_array($status, ['ON_TIME', 'DELAYED']);
 
             if ($isFlight) {
@@ -286,6 +319,9 @@ class TransportUserInterfaceController extends AbstractController
     // SCHEDULES TAB
     // ════════════════════════════════════════
 
+    /**
+     * Main schedules grid: filter by ?type= flight|vehicle|all and optional date/class params.
+     */
     #[Route('', name: 'user_transport_index')]
     #[Route('/schedules', name: 'user_transport_schedules')]
     public function schedules(Request $request): Response
@@ -314,6 +350,7 @@ class TransportUserInterfaceController extends AbstractController
         $depDate = $request->query->get('depDate', '');
         $rsStart = $request->query->get('rsStart', '');
         $rsEnd   = $request->query->get('rsEnd', '');
+        $to      = $request->query->get('to', '');
 
         $destMap = $this->buildDestinationMap();
 
@@ -381,7 +418,7 @@ class TransportUserInterfaceController extends AbstractController
             'destMap'      => $destMap,
             'availability' => $availability,
             'type'         => $type,
-            'filters'      => compact('from', 'cls', 'depDate', 'rsStart', 'rsEnd'),
+            'filters'      => compact('from', 'cls', 'depDate', 'rsStart', 'rsEnd', 'to'),
         ]);
     }
 
@@ -389,15 +426,22 @@ class TransportUserInterfaceController extends AbstractController
     // TRANSPORT TAB
     // ════════════════════════════════════════
 
+    /** Step 1: pick FLIGHT vs VEHICLE, then provider, then transport cards. */
     #[Route('/browse', name: 'user_transport_browse')]
     public function browse(Request $request): Response
     {
         $transportType = $request->query->get('transportType', '');
 
+        $from    = $request->query->get('from', '');
+        $to      = $request->query->get('to', '');
+        $depDate = $request->query->get('depDate', '');
+        $rsEnd   = $request->query->get('rsEnd', '');
+
         if (!$transportType) {
             return $this->render('front/TransportUserInterface.html.twig', [
-                'tab'  => 'transport',
-                'view' => 'type_select',
+                'tab'     => 'transport',
+                'view'    => 'type_select',
+                'filters' => compact('from', 'to', 'depDate', 'rsEnd'),
             ]);
         }
 
@@ -408,7 +452,11 @@ class TransportUserInterfaceController extends AbstractController
 
         $transports = array_filter(
             $this->transportService->getAllTransports(),
-            fn($t) => $t->getTransportType() === $transportType && $t->isActive()
+            function($t) use ($transportType, $from, $to) {
+                if ($t->getTransportType() !== $transportType || !$t->isActive()) return false;
+                if ($from && stripos($t->getProviderName() . ' ' . $t->getVehicleModel(), $from) === false) return false;
+                return true;
+            }
         );
 
         $providers = [];
@@ -423,9 +471,11 @@ class TransportUserInterfaceController extends AbstractController
             'view'          => 'providers',
             'transportType' => $transportType,
             'providers'     => $providers,
+            'filters'       => compact('from', 'to', 'depDate', 'rsEnd'),
         ]);
     }
 
+    /** Lists active transports for a given provider + type. */
     #[Route('/browse/provider', name: 'user_transport_provider')]
     public function providerTransports(Request $request): Response
     {
@@ -437,11 +487,18 @@ class TransportUserInterfaceController extends AbstractController
             return $this->redirectToRoute('user_transport_browse');
         }
 
+        $from    = $request->query->get('from', '');
+        $to      = $request->query->get('to', '');
+        $depDate = $request->query->get('depDate', '');
+        $rsEnd   = $request->query->get('rsEnd', '');
+
         $transports = array_filter(
             $this->transportService->getAllTransports(),
-            fn($t) => $t->getTransportType() === $transportType
-                   && $t->getProviderName() === $provider
-                   && $t->isActive()
+            function($t) use ($transportType, $provider, $from, $to) {
+                if ($t->getTransportType() !== $transportType || $t->getProviderName() !== $provider || !$t->isActive()) return false;
+                if ($from && stripos($t->getVehicleModel(), $from) === false) return false;
+                return true;
+            }
         );
 
         return $this->render('front/TransportUserInterface.html.twig', [
@@ -450,9 +507,11 @@ class TransportUserInterfaceController extends AbstractController
             'transportType' => $transportType,
             'provider'      => $provider,
             'transports'    => array_values($transports),
+            'filters'       => compact('from', 'to', 'depDate', 'rsEnd'),
         ]);
     }
 
+    /** Single transport + its non-cancelled schedules and availability hints. */
     #[Route('/browse/detail/{id}', name: 'user_transport_detail')]
     public function transportDetail(int $id): Response
     {
@@ -508,6 +567,7 @@ class TransportUserInterfaceController extends AbstractController
     // BOOKING FORM
     // ════════════════════════════════════════
 
+    /** Booking wizard: requires transportId; scheduleId optional but recommended. */
     #[Route('/book', name: 'user_transport_book_form', methods: ['GET'])]
     public function bookForm(Request $request): Response
     {
@@ -562,6 +622,7 @@ class TransportUserInterfaceController extends AbstractController
         ]);
     }
 
+    /** Persists Bookingtrans for the logged-in user (see getCurrentUserId). */
     #[Route('/book', name: 'user_transport_book_submit', methods: ['POST'])]
     public function bookSubmit(Request $request): Response
     {
@@ -771,10 +832,7 @@ class TransportUserInterfaceController extends AbstractController
         return $this->redirectToRoute('user_transport_mybookings');
     }
 
-    // ════════════════════════════════════════
-    // MY BOOKINGS TAB
-    // ════════════════════════════════════════
-
+    /** Lists Bookingtrans rows for the current user with summary stats. */
     #[Route('/my-bookings', name: 'user_transport_mybookings')]
     public function myBookings(): Response
     {
@@ -799,6 +857,7 @@ class TransportUserInterfaceController extends AbstractController
         ]);
     }
 
+    /** User-initiated cancel (PENDING only); CSRF booking_cancel. */
     #[Route('/my-bookings/cancel/{id}', name: 'user_booking_cancel', methods: ['POST'])]
     public function cancelBooking(int $id, Request $request): Response
     {
@@ -831,6 +890,7 @@ class TransportUserInterfaceController extends AbstractController
         return $this->redirectToRoute('user_transport_mybookings');
     }
 
+    /** Attach a schedule to a booking that was created without one (e.g. open-dated). */
     #[Route('/my-bookings/add-schedule/{bookingId}', name: 'user_booking_add_schedule', methods: ['GET', 'POST'])]
     public function addScheduleToBooking(int $bookingId, Request $request): Response
     {
@@ -928,10 +988,7 @@ class TransportUserInterfaceController extends AbstractController
         ]);
     }
 
-    // ════════════════════════════════════════
-    // AI ROUTE (AJAX)
-    // ════════════════════════════════════════
-
+    /** Vehicle booking helper: optimal route text from TransportOptimalRouteService (AJAX). */
     #[Route('/route-ai', name: 'user_transport_route_ai', methods: ['POST'])]
     public function routeAi(Request $request): JsonResponse
     {
@@ -965,6 +1022,7 @@ class TransportUserInterfaceController extends AbstractController
         }
     }
 
+    /** Dompdf receipt download; restricted to booking owner. */
     #[Route('/my-bookings/receipt/{id}', name: 'user_booking_receipt_pdf')]
     public function exportReceiptPdf(int $id): Response
     {
@@ -1009,4 +1067,5 @@ class TransportUserInterfaceController extends AbstractController
             'Content-Disposition' => 'attachment; filename="TripX_Receipt_#'. $id .'.pdf"',
         ]);
     }
+    
 }

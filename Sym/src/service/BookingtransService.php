@@ -55,33 +55,38 @@ class BookingtransService
 
     public function generateQrCode(Bookingtrans $b): void
     {
-        $writer = new SvgWriter();
-        
-        // Content: Booking ID + "TripX Reservation"
-        $content = "TripX Reservation\nBooking ID: " . $b->getBookingId() . "\nUser ID: " . $b->getUserId();
-        
-        $qrCode = new QrCode(
-            data: $content,
-            encoding: new Encoding('UTF-8'),
-            errorCorrectionLevel: ErrorCorrectionLevel::Low,
-            size: 300,
-            margin: 10,
-            roundBlockSizeMode: RoundBlockSizeMode::Margin,
-            foregroundColor: new Color(31, 41, 76),
-            backgroundColor: new Color(255, 255, 255)
-        );
+        try {
+            $writer = new SvgWriter();
+            
+            // Content: Booking ID + "TripX Reservation"
+            $content = "TripX Reservation\nBooking ID: " . $b->getBookingId() . "\nUser ID: " . $b->getUserId();
+            
+            $qrCode = new QrCode(
+                data: $content,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::Low,
+                size: 300,
+                margin: 10,
+                roundBlockSizeMode: RoundBlockSizeMode::Margin,
+                foregroundColor: new Color(31, 41, 76),
+                backgroundColor: new Color(255, 255, 255)
+            );
 
-        $result = $writer->write($qrCode);
-        
-        $fileName = 'booking_' . $b->getBookingId() . '_' . uniqid() . '.svg';
-        // Using a relative path for the database, and absolute for saving
-        // Note: In a real app, use kernel.project_dir parameter
-        $uploadPath = 'uploads/qrcodes/' . $fileName;
-        $absolutePath = __DIR__ . '/../../public/' . $uploadPath;
-        
-        $result->saveToFile($absolutePath);
-        
-        $b->setQrCode($uploadPath);
+            $result = $writer->write($qrCode);
+            
+            $fileName = 'booking_' . $b->getBookingId() . '_' . uniqid() . '.svg';
+            // Using a relative path for the database, and absolute for saving
+            // Note: In a real app, use kernel.project_dir parameter
+            $uploadPath = 'uploads/qrcodes/' . $fileName;
+            $absolutePath = __DIR__ . '/../../public/' . $uploadPath;
+            
+            $result->saveToFile($absolutePath);
+            
+            $b->setQrCode($uploadPath);
+        } catch (\Throwable $e) {
+            // Log error but continue without QR code
+            // error_log('Failed to generate QR code: ' . $e->getMessage());
+        }
     }
 
     // Read all

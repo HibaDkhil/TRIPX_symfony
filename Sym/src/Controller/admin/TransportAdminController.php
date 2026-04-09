@@ -25,6 +25,10 @@ class TransportAdminController extends AbstractController
 {
     private DestinationTransService $destService;
     private ValidatorInterface $validator;
+    private TransportService $transportService;
+    private ScheduleService $scheduleService;
+    private BookingtransService $bookingService;
+    private ValidationService $validation;
 
     public function __construct(
         TransportService $transportService,
@@ -121,10 +125,8 @@ class TransportAdminController extends AbstractController
             $capacity  = (int)   $request->request->get('capacity');
             $units     = (int)   $request->request->get('availableUnits');
             $eco       = (float) $request->request->get('sustainabilityRating');
-            $type      = $request->request->get('transportType');
+            $type      = strtoupper((string) $request->request->get('transportType', ''));
             $provider  = $request->request->get('providerName');
-            $model     = $request->request->get('vehicleModel');
-
             $model     = $request->request->get('vehicleModel');
 
             $t = new Transport();
@@ -235,7 +237,7 @@ class TransportAdminController extends AbstractController
             $capacity  = (int)   $request->request->get('capacity');
             $units     = (int)   $request->request->get('availableUnits');
             $eco       = (float) $request->request->get('sustainabilityRating');
-            $type      = $request->request->get('transportType');
+            $type      = strtoupper((string) $request->request->get('transportType', ''));
             $provider  = $request->request->get('providerName');
             $model     = $request->request->get('vehicleModel');
 
@@ -871,7 +873,7 @@ class TransportAdminController extends AbstractController
                     number_format($b->getTotalPrice(), 2, '.', ''),
                     $b->getBookingStatus(),
                     $b->getPaymentStatus(),
-                    $b->getIsWithInsurance() ? 'Yes' : 'No',
+                    $b->isInsuranceIncluded() ? 'Yes' : 'No',
                     $b->getBookingDate()?->format('Y-m-d H:i:s'),
                     $b->getCancellationReason()
                 ], ';');
@@ -940,63 +942,39 @@ class TransportAdminController extends AbstractController
             'transports'     => $this->transportService->getAllTransports(),
             'schedules'      => [],
             'bookings'       => $this->bookingService->getAllBookings(),
-            'stats'          => $this->getStats('booking'),
+            'stats'          => $this->getStats('booking')
         ]);
     }
 
     private function getStats(string $tab): array
     {
-        if ($tab === 'transport') {
-            $transports = $this->transportService->getAllTransports();
-            $activeCount = 0;
-            foreach ($transports as $t) if ($t->isActive()) $activeCount++;
-            return [
-                'total' => count($transports),
-                'count_2' => $activeCount,
-                'count_2_label' => 'Active',
-                'hub' => 'Online'
-            ];
-        } elseif ($tab === 'schedule') {
-            $schedules = $this->scheduleService->getAllSchedules();
-            $onTime = 0;
-            $totalDelay = 0;
-            foreach ($schedules as $s) {
-                if ($s->getStatus() === 'ON_TIME') $onTime++;
-                $totalDelay += $s->getDelayMinutes();
+        $transports  = $this->transportService->getAllTransports();
+        $schedules   = $this->scheduleService->getAllSchedules();
+        $bookings    = $this->bookingService->getAllBookings();
+
+        $activeTrans = 0;
+        foreach ($transports as $t) if ($t->isActive()) $activeTrans++;
+
+        $onTimeSched = 0;
+        foreach ($schedules as $s) if ($s->getStatus() === 'ON_TIME') $onTimeSched++;
+
+        $revenue = 0;
+        $confirmed = 0;
+        foreach ($bookings as $b) {
+            if ($b->getBookingStatus() === 'CONFIRMED') {
+                $confirmed++;
+                $revenue += $b->getTotalPrice();
             }
-            return [
-                'total' => count($schedules),
-                'count_2' => $onTime,
-                'count_2_label' => 'On Time',
-                'hub' => count($schedules) > 0 ? round($totalDelay / count($schedules), 1) . 'm Avg Delay' : '0m Delay'
-            ];
-        } elseif ($tab === 'booking') {
-            $bookings = $this->bookingService->getAllBookings();
-            $confirmed = 0;
-            $revenue = 0;
-            foreach ($bookings as $b) {
-                if ($b->getBookingStatus() === 'CONFIRMED') {
-                    $confirmed++;
-                    $revenue += $b->getTotalPrice();
-                }
-            }
-            return [
-                'total' => count($bookings),
-                'count_2' => $confirmed,
-                'count_2_label' => 'Confirmed',
-                'hub' => '€' . number_format($revenue, 0)
-            ];
-        } elseif ($tab === 'destination') {
-            $dests = $this->destService->getAllDestinations();
-            $countries = [];
-            foreach ($dests as $d) $countries[$d->getCountry()] = true;
-            return [
-                'total' => count($dests),
-                'count_2' => count($countries),
-                'count_2_label' => 'Countries',
-                'hub' => 'Global Network'
-            ];
         }
-        return ['total' => 0, 'count_2' => 0, 'count_2_label' => 'N/A', 'hub' => 'N/A'];
+
+        return [
+            'totalTransports'   => count($transports),
+            'activeTransports'  => $activeTrans,
+            'totalSchedules'    => count($schedules),
+            'activeSchedules'   => $onTimeSched,
+            'totalBookings'     => count($bookings),
+            'confirmedBookings' => $confirmed,
+            'revenue'           => $revenue
+        ];
     }
 }
