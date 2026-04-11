@@ -8,7 +8,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
 
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: \App\Repository\UserRepository::class)]
 #[ORM\Table(name: 'user')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
@@ -16,16 +16,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\GeneratedValue]
     #[ORM\Column(name: 'user_id', type: 'integer')]
     private ?int $userId = null;
+
     /* Form requirements houni  */
     #[ORM\Column(name: 'first_name', type: 'string', length: 80)]
     #[Assert\NotBlank(message: 'First name is required')]
-    #[Assert\Length(min: 2, max: 80, minMessage: 'First name must be at least 2 characters')]
+    #[Assert\Length(min: 2, max: 50, minMessage: 'First name must be at least 2 characters')]
     private ?string $firstName = null;
 
 
     #[ORM\Column(name: 'last_name', type: 'string', length: 80)]
     #[Assert\NotBlank(message: 'Last name is required')]
-    #[Assert\Length(min: 2, max: 80, minMessage: 'Last name must be at least 2 characters')]
+    #[Assert\Length(min: 2, max: 50, minMessage: 'Last name must be at least 2 characters')]
     private ?string $lastName = null;
 
 
@@ -69,8 +70,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[Assert\NotBlank(message: 'Password is required')]
     #[Assert\Length(min: 8, minMessage: 'Password must be at least 8 characters')]
+    #[Assert\Regex(pattern: '/[A-Z]/', message: 'Password must contain at least 1 uppercase letter')]
+    #[Assert\Regex(pattern: '/[a-z]/', message: 'Password must contain at least 1 lowercase letter')]
     private ?string $plainPassword = null;
-
 
     public function __construct()
     {
@@ -239,18 +241,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->plainPassword = $plainPassword;
         return $this;
     }
+
+    public function getAvatarSeed(): string
+{
+    return 'user_' . ($this->userId ?? 'new');
+}
+
     /* ── UserInterface ── */
 
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
     }
-
+// Permissions & roles 
     public function getRoles(): array
     {
         $roles = ['ROLE_USER'];
 
-        // Map the single "role" column to Symfony's ROLE_ format
+        
         switch ($this->role) {
             case 'admin':
                 $roles[] = 'ROLE_ADMIN';
@@ -279,6 +287,5 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // Clear any temporary sensitive data
     }
-
 
 }

@@ -29,7 +29,7 @@ class UserController extends AbstractController
      * Display user profile page
      */
     #[Route('/profile', name: 'users', methods: ['GET'])]
-    public function profile(): Response
+    public function profile(Request $request): Response
     {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -41,8 +41,36 @@ class UserController extends AbstractController
 
         // Get enriched profile data from service
         $profileData = $this->profileService->getProfileData($user);
+        
+        // Get avatar style from session (default to 'adventurer')
+        $avatarStyle = $request->getSession()->get('user_avatar_style', 'adventurer');
+        
+        // Merge avatar style into profile data
+        $profileData['userAvatarStyle'] = $avatarStyle;
 
         return $this->render('front/users.html.twig', $profileData);
+    }
+
+    /**
+     * Save user avatar style
+     */
+    #[Route('/profile/avatar', name: 'profile_avatar', methods: ['POST'])]
+    public function saveAvatar(Request $request): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['success' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $avatarStyle = $data['style'] ?? 'adventurer';
+
+        // Store avatar style in session
+        $request->getSession()->set('user_avatar_style', $avatarStyle);
+
+        return $this->json(['success' => true, 'style' => $avatarStyle]);
     }
 
     /**

@@ -62,16 +62,20 @@ class FrontController extends AbstractController
         ]);
     }
 
-    #[Route('/accommodations', name: 'accommodations')]
-    public function accommodations(): Response
-    {
-        return $this->render('front/accommodations.html.twig');
-    }
+    /*
+     * Accommodations listing + AJAX search are handled by FrontAccommodationController
+     * (same path/name) — do not duplicate that route here.
+     * @see \App\Controller\user\FrontAccommodationController::index
+     */
 
+    /**
+     * Nav link "Transport" — forwards to the full transport module (schedules, bookings, API).
+     * Static mockup page: templates/front/transport.html.twig (reference design only).
+     */
     #[Route('/transport', name: 'transport')]
     public function transport(): Response
     {
-        return $this->render('front/transport.html.twig');
+        return $this->redirectToRoute('user_transport_index', [], Response::HTTP_FOUND);
     }
 
     #[Route('/offers', name: 'offers')]
@@ -80,11 +84,7 @@ class FrontController extends AbstractController
         return $this->render('front/offers.html.twig');
     }
 
-    #[Route('/blog', name: 'blog')]
-    public function blog(): Response
-    {
-        return $this->render('front/blog.html.twig');
-    }
+    
 
     #[Route('/users', name: 'users')]
     public function users(): Response

@@ -19,68 +19,79 @@ class RegistrationFormType extends AbstractType
     {
         $builder
             ->add('firstName', TextType::class, [
-                'label' => 'First Name',
-                'attr'  => ['id' => 'reg_first', 'autocomplete' => 'given-name'],
+                'label' => false,
+                'required' => false,
+                'attr'  => ['id' => 'reg_first', 'autocomplete' => 'given-name', 'placeholder' => ' '],
                 'constraints' => [
+                    new Assert\NotBlank(['message' => 'First name is required']),
                     new Assert\Length([
                         'min'        => 2,
                         'max'        => 50,
-                        'minMessage' => 'First name must be at least {{ limit }} characters.',
-                        'maxMessage' => 'First name cannot exceed {{ limit }} characters.',
+                        'minMessage' => 'First name must be at least 2 characters',
+                        'maxMessage' => 'First name cannot exceed 50 characters',
                     ]),
                 ],
             ])
             ->add('lastName', TextType::class, [
-                'label' => 'Last Name',
-                'attr'  => ['id' => 'reg_last', 'autocomplete' => 'family-name'],
+                'label' => false,
+                'required' => false,
+                'attr'  => ['id' => 'reg_last', 'autocomplete' => 'family-name', 'placeholder' => ' '],
                 'constraints' => [
+                    new Assert\NotBlank(['message' => 'Last name is required']),
                     new Assert\Length([
                         'min'        => 2,
                         'max'        => 50,
-                        'minMessage' => 'Last name must be at least {{ limit }} characters.',
-                        'maxMessage' => 'Last name cannot exceed {{ limit }} characters.',
+                        'minMessage' => 'Last name must be at least 2 characters',
+                        'maxMessage' => 'Last name cannot exceed 50 characters',
                     ]),
                 ],
             ])
             ->add('email', EmailType::class, [
-                'label' => 'Email',
-                'attr'  => ['id' => 'reg_email', 'autocomplete' => 'email'],
+                'label' => false,
+                'required' => false,
+                'attr'  => ['id' => 'reg_email', 'autocomplete' => 'email', 'placeholder' => ' '],
                 'constraints' => [
-                    new Assert\Email(['message' => 'Please enter a valid email address.']),
+                    new Assert\NotBlank(['message' => 'Email is required']),
+                    new Assert\Email(['message' => 'Please enter a valid email address']),
                 ],
             ])
             ->add('plainPassword', RepeatedType::class, [
                 'type'          => PasswordType::class,
                 'first_options' => [
-                    'label' => 'Password',
-                    'attr'  => ['id' => 'reg_password', 'autocomplete' => 'new-password'],
+                    'label' => false,
+                    'attr'  => ['id' => 'reg_password', 'autocomplete' => 'new-password', 'placeholder' => ' '],
                     'constraints' => [
+                        new Assert\NotBlank(['message' => 'Password is required']),
                         new Assert\Length([
                             'min'        => 8,
-                            'minMessage' => 'Password must be at least {{ limit }} characters.',
+                            'minMessage' => 'Password must be at least 8 characters (include uppercase, lowercase & numbers)',
+                        ]),
+                        new Assert\Regex([
+                            'pattern' => '/[0-9]/',
+                            'message' => 'Password must contain at least one number',
                         ]),
                     ],
                 ],
                 'second_options' => [
-                    'label' => 'Confirm Password',
-                    'attr'  => ['id' => 'reg_confirm', 'autocomplete' => 'new-password'],
+                    'label' => false,
+                    'attr'  => ['id' => 'reg_confirm', 'autocomplete' => 'new-password', 'placeholder' => ' '],
                 ],
-                'invalid_message' => 'Passwords do not match.',
+                'invalid_message' => 'Passwords do not match',
             ])
             ->add('phoneNumber', TextType::class, [
-                'label'    => 'Phone Number',
+                'label'    => false,
                 'required' => false,
-                'attr'     => ['id' => 'reg_phone'],
+                'attr'     => ['id' => 'reg_phone', 'placeholder' => ' '],
                 'constraints' => [
                     new Assert\Length([
                         'max'        => 20,
-                        'maxMessage' => 'Phone number cannot exceed {{ limit }} characters.',
+                        'maxMessage' => 'Phone number cannot exceed 20 characters',
                     ]),
                 ],
             ])
             ->add('save', SubmitType::class, [
                 'label' => 'Create account',
-                'attr'  => ['class' => 'btn-primary'],
+                'attr'  => ['class' => 'btn-primary', 'style' => 'display:none'],
             ]);
     }
 

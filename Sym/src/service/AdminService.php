@@ -9,10 +9,12 @@ use Doctrine\ORM\EntityManagerInterface;
 class AdminService
 {
     private $em;
+    private $profileService;
 
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(EntityManagerInterface $em, UserProfileService $profileService)
     {
         $this->em = $em;
+        $this->profileService = $profileService;
     }
 
     /**
@@ -86,8 +88,7 @@ class AdminService
     {
         $user = $this->em->getRepository(User::class)->find($id);
         if ($user) {
-            $this->em->remove($user);
-            $this->em->flush();
+            $this->profileService->deleteAccount($user);
             return true;
         }
         return false;

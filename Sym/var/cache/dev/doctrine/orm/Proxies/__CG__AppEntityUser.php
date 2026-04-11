@@ -536,6 +536,17 @@ class User extends \App\Entity\User implements \Doctrine\ORM\Proxy\Proxy
     /**
      * {@inheritDoc}
      */
+    public function getAvatarSeed(): string
+    {
+
+        $this->__initializer__ && $this->__initializer__->__invoke($this, 'getAvatarSeed', []);
+
+        return parent::getAvatarSeed();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getUserIdentifier(): string
     {
 

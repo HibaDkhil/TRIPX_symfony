@@ -18,14 +18,12 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 
-
 class AuthController extends AbstractController
 {
     private AuthService $authService;
     private Security $security;
     private PreferenceService $preferenceService;
 
-    // ADD THIS METHOD - this tells Symfony what services your controller needs
     public static function getSubscribedServices(): array
     {
         $services = parent::getSubscribedServices();
@@ -48,22 +46,26 @@ class AuthController extends AbstractController
         $this->preferenceService = $preferenceService;
     }
 
-    /* ── LOGIN PAGE ── */
+    /* ── LOGIN PAGE with brute force protection ── */
     #[Route('/', name: 'app_login')]
     #[Route('/login')]
-    public function login(Request $request, AuthenticationUtils $authUtils): Response
+    public function login(Request $request, AuthenticationUtils $authUtils, EntityManagerInterface $em): Response
     {
         if ($this->getUser()) {
             return $this->redirectToRoute('index');
         }
 
-        // This will work now because we declared form.factory in getSubscribedServices
+        $lastUsername = $authUtils->getLastUsername();
+
         $registrationForm = $this->createForm(RegistrationFormType::class, new User());
+        $session = $request->getSession();
 
         return $this->render('front/login.html.twig', [
             'last_username' => $authUtils->getLastUsername(),
             'error' => $authUtils->getLastAuthenticationError(),
             'form' => $registrationForm->createView(),
+            'lock_until' => $session->get('locked_until'),
+            'error_type' => $session->get('login_error_type'),
         ]);
     }
 
@@ -74,7 +76,8 @@ class AuthController extends AbstractController
         throw new \LogicException('This method should never be reached.');
     }
 
-    /* ── REGISTER ── */
+    /* ── REGISTER with password strength validation ── */
+    
     #[Route('/register', name: 'app_register', methods: ['POST'])]
     public function register(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher): Response
     {
@@ -85,36 +88,53 @@ class AuthController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $plainPassword = $user->getPlainPassword();
 
-            // Safety guard – should never be null after validation, but just in case
-            if (!$plainPassword) {
-                $this->addFlash('signup_error', 'Password is required.');
-                return $this->redirectToRoute('app_login', ['signup' => 1]);
+        // Extra password strength check (uppercase, lowercase)
+        $errors = [];
+            if (strlen($plainPassword) < 8) {
+                $errors[] = 'Password must be at least 8 characters.';
             }
-
-            $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
-            $user->setRole('user');
-            $user->setStatus('active');
-            $user->setEmailVerified(true);
-
-            $em->persist($user);
-            $em->flush();
-
-            $request->getSession()->set('onboarding_user_id', $user->getUserId());
-
-            return $this->redirectToRoute('app_onboarding');
+            if (!preg_match('/[A-Z]/', $plainPassword)) {
+                $errors[] = 'Password must contain at least 1 uppercase letter.';
+            }
+            if (!preg_match('/[a-z]/', $plainPassword)) {
+                $errors[] = 'Password must contain at least 1 lowercase letter.';
+            }
+            if (!preg_match('/[0-9]/', $plainPassword)) {
+                $errors[] = 'Password must contain at least 1 number.';
+            }
+        
+            if (!empty($errors)) {
+            foreach ($errors as $error) {
+                $this->addFlash('signup_error', $error);
+            }
+            return $this->redirectToRoute('app_login', ['signup' => 1]);
         }
 
-        // If the form is submitted but invalid (or failed validation)
-        return $this->render('front/login.html.twig', [
-            'last_username' => '', // not needed on signup error side
-            'error' => null, // not needed on signup error side
-            'form' => $form->createView(),
-            'show_signup' => true,
-        ]);
+        $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
+        $user->setRole('user');
+        $user->setStatus('active');
+        $user->setEmailVerified(true);
+
+        $avatarService = new \App\service\AvatarService();
+        $user->setAvatarId($user->getUserId());
+        $em->persist($user);
+        $em->flush();
+
+        $this->addFlash('success', 'Account created successfully! Welcome to TripX.');
+        $request->getSession()->set('onboarding_user_id', $user->getUserId());
+
+        return $this->redirectToRoute('app_onboarding');
     }
 
+    // Collect all form errors
+    foreach ($form->getErrors(true) as $error) {
+        $this->addFlash('signup_error', $error->getMessage());
+    }
 
-    /* ── ONBOARDING PAGE ── */
+    return $this->redirectToRoute('app_login', ['signup' => 1]);
+}
+
+    /* ── ONBOARDING PAGE with session persistence ── */
     #[Route('/onboarding', name: 'app_onboarding')]
     public function onboarding(Request $request, EntityManagerInterface $em): Response
     {
@@ -140,7 +160,7 @@ class AuthController extends AbstractController
         $userId = $request->getSession()->get('onboarding_user_id');
 
         if (!$userId) {
-            return new JsonResponse(['success' => false, 'message' => 'Session expired'], 401);
+            return new JsonResponse(['success' => false, 'message' => 'Session expired, please login again'], 401);
         }
 
         $data = json_decode($request->getContent(), true) ?? [];
@@ -148,7 +168,6 @@ class AuthController extends AbstractController
         if ($this->preferenceService->savePreferences((int) $userId, $data)) {
             $user = $em->getRepository(User::class)->find($userId);
             if ($user) {
-                // Programmatically log in the user so they can access the platform instantly
                 $this->security->login($user);
             }
             $request->getSession()->remove('onboarding_user_id');
@@ -157,5 +176,4 @@ class AuthController extends AbstractController
 
         return new JsonResponse(['success' => false, 'message' => 'Saving failed'], 500);
     }
-    
 }

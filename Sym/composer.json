@@ -8,11 +8,18 @@
         "php": ">=8.2",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "barryvdh/laravel-dompdf": "^3.1",
         "doctrine/dbal": "3.8.*",
         "doctrine/doctrine-bundle": "^2.12",
         "doctrine/doctrine-migrations-bundle": "^3.3",
         "doctrine/orm": "^2.19",
-        "knplabs/knp-paginator-bundle": "^6.10",
+        "dompdf/dompdf": "^3.1",
+        "google/apiclient": "2.15",
+        "knplabs/knp-paginator-bundle": "*",
+        "knpuniversity/oauth2-client-bundle": "*",
+        "league/oauth2-google": "*",
+        "league/oauth2-linkedin": "*",
+        "phpoffice/phpspreadsheet": "^5.5",
         "symfony/asset": "6.4.*",
         "symfony/console": "6.4.*",
         "symfony/doctrine-bridge": "6.4.*",
@@ -21,8 +28,10 @@
         "symfony/flex": "^2",
         "symfony/form": "6.4.*",
         "symfony/framework-bundle": "6.4.*",
+        "symfony/google-mailer": "6.4.*",
         "symfony/http-client": "6.4.*",
         "symfony/mailer": "6.4.*",
+        "symfony/mime": "6.4.*",
         "symfony/notifier": "6.4.*",
         "symfony/runtime": "6.4.*",
         "symfony/security-bundle": "6.4.*",
@@ -81,6 +90,6 @@
         }
     },
     "require-dev": {
-        "symfony/maker-bundle": "*"
+        "symfony/maker-bundle": "^1.67"
     }
 }

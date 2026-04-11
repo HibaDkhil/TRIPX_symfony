@@ -124,7 +124,7 @@ class UserProfileService
             ];
         }
 
-        return [
+        $profileData = [
             'user'            => $user,
             'preferences'     => $prefs,
             'prefPriorities'    => $this->decodePrefArray($prefs?->getPriorities()),
@@ -151,7 +151,85 @@ class UserProfileService
             'profileStatBookings' => $activityStats['BOOKING'],
             'profileStatDestinationsTapped' => count($destinationClicks),
             'profileStatMinutes' => (int) round($totalMinutes),
+            'trips' => $this->getTripHistory($user),
         ];
+
+        $profileData['latestTrip'] = $profileData['trips'][0] ?? null;
+        
+        return $profileData;
+    }
+
+    /**
+     * Finds and normalizes all bookings across all types (Accommodation, Transport, Destination/Activity)
+     */
+    private function getTripHistory(User $user): array
+    {
+        $userId = $user->getUserId();
+        $trips = [];
+
+        // 1. Accommodation Bookings
+        $accBookings = $this->em->getRepository(\App\Entity\BookingAcc::class)->findBy(
+            ['userId' => $userId],
+            ['createdAt' => 'DESC'],
+            10
+        );
+        foreach ($accBookings as $b) {
+            $room = $b->getRoom();
+            $acc = $room ? $room->getAccommodation() : null;
+            if ($acc) {
+                $trips[] = [
+                    'name' => $acc->getName(),
+                    'photo' => $acc->getImagePath(),
+                    'rating' => $acc->getRating(),
+                    'date' => $b->getCheckIn()?->format('M d, Y'),
+                    'rawDate' => $b->getCreatedAt(),
+                    'type' => 'Accommodation'
+                ];
+            }
+        }
+
+        // 2. Transport Bookings
+        $transBookings = $this->em->getRepository(\App\Entity\Bookingtrans::class)->findBy(
+            ['userId' => (int)$userId],
+            ['bookingDate' => 'DESC'],
+            10
+        );
+        foreach ($transBookings as $b) {
+            $transport = $this->em->getRepository(\App\Entity\Transport::class)->find($b->getTransportId());
+            $trips[] = [
+                'name' => $transport ? ($transport->getProviderName() . ' ' . $transport->getVehicleModel()) : 'Transport Booking',
+                'photo' => $transport ? $transport->getImageUrl() : null,
+                'rating' => $transport ? $transport->getSustainabilityRating() : null,
+                'date' => $b->getBookingDate()?->format('M d, Y'),
+                'rawDate' => $b->getBookingDate(),
+                'type' => 'Transport'
+            ];
+        }
+
+        // 3. General Activity/Destination Bookings
+        $genBookings = $this->em->getRepository(\App\Entity\Booking::class)->findBy(
+            ['userId' => $userId],
+            ['createdAt' => 'DESC'],
+            10
+        );
+        foreach ($genBookings as $b) {
+            $dest = $this->em->getRepository(\App\Entity\Destination::class)->find($b->getDestinationId());
+            $activity = $b->getActivityId() ? $this->em->getRepository(\App\Entity\Activity::class)->find($b->getActivityId()) : null;
+            
+            $trips[] = [
+                'name' => $activity ? $activity->getName() : ($dest ? $dest->getName() : 'Destination Trip'),
+                'photo' => $dest ? $dest->getImageUrl() : null,
+                'rating' => $activity ? $activity->getAverageRating() : ($dest ? $dest->getAverageRating() : null),
+                'date' => $b->getStartAt()?->format('M d, Y'),
+                'rawDate' => $b->getCreatedAt(),
+                'type' => $activity ? 'Activity' : 'Destination'
+            ];
+        }
+
+        // Sort all found trips by rawDate desc
+        usort($trips, fn($a, $b) => ($b['rawDate'] <=> $a['rawDate']));
+
+        return array_slice($trips, 0, 20);
     }
 
     private function buildProfileHandle(User $user): string
@@ -283,14 +361,40 @@ class UserProfileService
 
     public function deleteAccount(User $user): void
     {
-        $suffix = $user->getUserId() . '_' . time();
-        $user->setEmail('deleted_' . $suffix . '@tripx.local');
-        $user->setFirstName('Deleted');
-        $user->setLastName('User');
-        $user->setPhoneNumber(null);
-        $user->setBio(null);
-        $user->setStatus('deleted');
-        $user->setPassword($this->hasher->hashPassword($user, bin2hex(random_bytes(16))));
+        $uid = (int) $user->getUserId();
+
+        // 1. Delete associated activities logs (UserActivityLog)
+        $logs = $this->em->getRepository(\App\Entity\UserActivityLog::class)->findBy(['userId' => $uid]);
+        foreach ($logs as $log) {
+            $this->em->remove($log);
+        }
+
+        // 2. Clear related accommodation bookings (BookingAcc)
+        $accBookings = $this->em->getRepository(\App\Entity\BookingAcc::class)->findBy(['userId' => $uid]);
+        foreach ($accBookings as $b) {
+            $this->em->remove($b);
+        }
+
+        // 3. Clear related transport bookings (Bookingtrans)
+        $transBookings = $this->em->getRepository(\App\Entity\Bookingtrans::class)->findBy(['userId' => $uid]);
+        foreach ($transBookings as $b) {
+            $this->em->remove($b);
+        }
+
+        // 4. Delete preferences
+        $preferences = $this->em->getRepository(\App\Entity\Preference::class)->findOneBy(['userId' => $uid]);
+        if ($preferences) {
+            $this->em->remove($preferences);
+        }
+
+        // 5. Delete price alerts
+        $alerts = $this->em->getRepository(\App\Entity\PriceAlert::class)->findBy(['userId' => $uid]);
+        foreach ($alerts as $a) {
+            $this->em->remove($a);
+        }
+
+        // 6. Hard delete the user
+        $this->em->remove($user);
         $this->em->flush();
     }
 
